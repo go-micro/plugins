@@ -121,8 +121,8 @@ func DialOptions(opts ...grpc.DialOption) client.CallOption {
 //
 // CallOptions to be used to configure gRPC call options
 //
-func CallOptions(opts ...grpc.CallOption) client.CallOption {
-	return func(o *client.CallOptions) {
+func CallOptions(opts ...grpc.CallOption) client.Option {
+	return func(o *client.Options) {
 		if o.Context == nil {
 			o.Context = context.Background()
 		}

@@ -654,11 +654,11 @@ func (g *grpcClient) String() string {
 }
 
 func (g *grpcClient) getGrpcDialOptions() []grpc.DialOption {
-	if g.opts.CallOptions.Context == nil {
+	if g.opts.Context == nil {
 		return nil
 	}
 
-	v := g.opts.CallOptions.Context.Value(grpcDialOptions{})
+	v := g.opts.Context.Value(grpcDialOptions{})
 
 	if v == nil {
 		return nil
