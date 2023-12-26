@@ -61,6 +61,7 @@ use (
 	./v4/registry/eureka
 	./v4/registry/gossip
 	./v4/registry/kubernetes
+	./v4/registry/kubernetes-headless-svc
 	./v4/registry/mdns
 	./v4/registry/memory
 	./v4/registry/multi
