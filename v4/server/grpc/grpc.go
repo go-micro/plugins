@@ -983,9 +983,14 @@ func (g *grpcServer) Start() error {
 			close(exit)
 		}()
 
+		gracefulTimeout := time.Second
+		if v, ok := g.opts.Context.Value(gracefulStopTimeoutKey{}).(time.Duration); ok && v > 0 {
+			gracefulTimeout = v
+		}
+
 		select {
 		case <-exit:
-		case <-time.After(time.Second):
+		case <-time.After(gracefulTimeout):
 			g.srv.Stop()
 		}
 
