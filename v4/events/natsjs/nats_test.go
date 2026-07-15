@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-micro/plugins/v4/events/natsjs"
 	nserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/test-go/testify/require"
 	"go-micro.dev/v4/events"
@@ -18,6 +19,75 @@ import (
 type Payload struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+func TestConsumeAckPolicy(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	clusterName := "test-cluster"
+	natsAddr := getFreeLocalhostAddress()
+	natsPort, _ := strconv.Atoi(strings.Split(natsAddr, ":")[1])
+
+	go natsServer(ctx,
+		t,
+		&nserver.Options{
+			Host: strings.Split(natsAddr, ":")[0],
+			Port: natsPort,
+			Cluster: nserver.ClusterOpts{
+				Name: clusterName,
+			},
+		},
+	)
+
+	time.Sleep(1 * time.Second)
+
+	client, err := natsjs.NewStream(
+		natsjs.Address(natsAddr),
+		natsjs.ClusterID(clusterName),
+	)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		topic    string
+		group    string
+		opts     []events.ConsumeOption
+		expected nats.AckPolicy
+	}{
+		{
+			name:     "defaults to auto ack",
+			topic:    "default-auto-ack",
+			group:    "default-auto-ack-consumer",
+			expected: nats.AckNonePolicy,
+		},
+		{
+			name:     "allows manual ack",
+			topic:    "manual-ack",
+			group:    "manual-ack-consumer",
+			opts:     []events.ConsumeOption{events.WithAutoAck(false, time.Second)},
+			expected: nats.AckExplicitPolicy,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := append([]events.ConsumeOption{events.WithGroup(tt.group)}, tt.opts...)
+			_, err := client.Consume(tt.topic, opts...)
+			require.NoError(t, err)
+
+			nc, err := nats.Connect(natsAddr)
+			require.NoError(t, err)
+			defer nc.Close()
+
+			js, err := nc.JetStream()
+			require.NoError(t, err)
+
+			info, err := js.ConsumerInfo(tt.topic, tt.group)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, info.Config.AckPolicy)
+		})
+	}
 }
 
 func TestSingleEvent(t *testing.T) {
